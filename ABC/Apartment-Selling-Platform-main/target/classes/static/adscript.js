@@ -236,9 +236,13 @@ async function loadAnalytics(filterStatus = '') {
     }
 }
 
-// Utility Functions
-function showToast(message, type = 'success') {
-    alert(`${type.toUpperCase()}: ${message}`);
+// Show toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 p-4 rounded shadow text-white ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 function openModal(modalId) {
@@ -246,8 +250,10 @@ function openModal(modalId) {
     document.getElementById(modalId).classList.remove('hidden');
 }
 
+// Close modal
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.add('hidden');
 }
 
 function getInitials(text) {
@@ -262,22 +268,21 @@ function adminLogout() {
     }
 }
 
-// Section Management
-function loadSection(section) {
-    if (!checkAdminAuth()) return;
-
+// Load section
+function loadSection(sectionId) {
     document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-    document.getElementById(section).classList.remove('hidden');
+    const section = document.getElementById(sectionId);
+    if (section) section.classList.remove('hidden');
 
-    if (section === 'apartmentListings') {
+    if (sectionId === 'apartmentListings') {
         loadApartmentListings();
-    } else if (section === 'userManagement') {
+    } else if (sectionId === 'userManagement') {
         loadUserManagement();
-    } else if (section === 'analytics') {
+    } else if (sectionId === 'analytics') {
         loadAnalytics();  // Load analytics on section select
-    } else if (section === 'locationMaps') {
+    } else if (sectionId === 'locationMaps') {
         loadLocationMaps();  // Load location maps
-    } else if (section === 'dashboard') {
+    } else if (sectionId === 'dashboard') {
         loadDashboard();  // Load dashboard
     }
 }
@@ -338,7 +343,7 @@ async function loadAnalytics(filterStatus = '') {
 function initAnalyticsFilter() {
     const statusFilter = document.getElementById('statusFilter');
     if (statusFilter) {
-        statusFilter.addEventListener('change', function() {
+        statusFilter.addEventListener('change', function () {
             const selected = this.value;
             loadAnalytics(selected);
         });
@@ -528,7 +533,7 @@ function createCharts(users, apartments, analytics) {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        callback: function(value) {
+                        callback: function (value) {
                             return '$' + value.toLocaleString();
                         }
                     }
@@ -612,9 +617,8 @@ function updateRecentActivity(apartments, users) {
         row.className = 'border-b hover:bg-gray-50';
         row.innerHTML = `
             <td class="py-2 px-4">
-                <span class="px-2 py-1 rounded-full text-xs font-semibold ${
-            activity.type === 'Apartment' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-        }">
+                <span class="px-2 py-1 rounded-full text-xs font-semibold ${activity.type === 'Apartment' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+            }">
                     ${activity.type}
                 </span>
             </td>
@@ -644,103 +648,227 @@ function cancelEdit(id) {
     }
 }
 
-// Load Apartments from Database
-function loadApartmentListings() {
-    console.log('Attempting to load apartments from:', `${API_BASE_URL}/admin/apartments1`);
+// Load apartment listings
+async function loadApartmentListings() {
+    const section = document.getElementById('apartmentListings');
+    if (!section) return;
 
-    fetch(`${API_BASE_URL}/admin/apartments1`)
-        .then(response => {
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(`HTTP ${response.status}: ${text}`);
-                });
-            }
-            return response.json();
-        })
-        .then(apartments => {
-            console.log('Apartments loaded successfully:', apartments);
-            populateApartmentTable(apartments);
-            updateApartmentStats(apartments);
-        })
-        .catch(error => {
-            console.error('Full error details:', error);
-            const tableBody = document.getElementById('apartmentTableBody');
-            if (tableBody) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="text-center py-4 text-red-500">
-                            Server Error: ${error.message}<br>
-                            Check Spring Boot console for details
-                        </td>
-                    </tr>
-                `;
-            }
+    // Show the apartment listings section
+    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+    section.classList.remove('hidden');
+
+    // Set up the apartment listings table
+    section.innerHTML = `
+        <h1 class="text-2xl font-bold mb-6">Apartment Listings</h1>
+        <div class="analytics-filter">
+            <label for="statusFilter">Filter by Status:</label>
+            <select id="statusFilter" onchange="loadApartmentListings(this.value)">
+                <option value="">All</option>
+                <option value="AVAILABLE">Available</option>
+                <option value="BOOKED">Booked</option>
+                <option value="PENDING">Pending</option>
+            </select>
+            <span class="analytics-filter-info">Select a status to filter apartments</span>
+        </div>
+        <div class="analytics-loading">Loading...</div>
+        <table class="analytics-table">
+            <thead>
+                <tr>
+                    <th class="analytics-th">ID</th>
+                    <th class="analytics-th">Type</th>
+                    <th class="analytics-th">Price</th>
+                    <th class="analytics-th">Bedrooms</th>
+                    <th class="analytics-th">Location</th>
+                    <th class="analytics-th">Status</th>
+                    <th class="analytics-th">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="apartmentListBody"></tbody>
+        </table>
+    `;
+
+    try {
+        const url = currentFilter ? `${API_BASE_URL}/admin/apartments1?status=${encodeURIComponent(currentFilter)}` : `${API_BASE_URL}/admin/apartments1`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
         });
+
+        if (!response.ok) throw new Error(`Failed to fetch apartments: ${response.status}`);
+
+        const apartments = await response.json();
+        allProperties = apartments; // Update global properties for map integration
+        const tbody = document.getElementById('apartmentListBody');
+        tbody.innerHTML = '';
+
+        apartments.forEach(apt => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="analytics-td">${apt.aptId}</td>
+                <td class="analytics-td">${apt.aptType}</td>
+                <td class="analytics-td">$${parseFloat(apt.aptPrice).toLocaleString()}</td>
+                <td class="analytics-td">${apt.aptBedrooms}</td>
+                <td class="analytics-td">${apt.aptLocation}</td>
+                <td class="analytics-td">${apt.aptStatus}</td>
+                <td class="analytics-td">
+                    <button class="analytics-edit-btn" onclick="viewApartmentDetails(${apt.aptId})">View</button>
+                    <button class="analytics-edit-btn" onclick="editApartment(${apt.aptId})">Edit</button>
+                    <button class="analytics-edit-btn bg-red-500" onclick="deleteApartment(${apt.aptId})">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        document.querySelector('.analytics-loading').style.display = 'none';
+    } catch (error) {
+        console.error('Error loading apartments:', error);
+        showToast('Failed to load apartments', 'error');
+        document.querySelector('.analytics-loading').style.display = 'none';
+    }
 }
 
-function populateApartmentTable(apartments) {
-    const tableBody = document.getElementById('apartmentTableBody');
+// Open add apartment modal
+function addNewApartment() {
+    const modal = document.getElementById('addApartmentModal');
+    modal.classList.remove('hidden');
+    document.getElementById('newApartmentForm').reset();
+}
 
-    if (!tableBody) {
-        console.error('apartmentTableBody element not found!');
-        return;
+// Create a new apartment
+async function createApartment() {
+    const apartment = {
+        aptType: document.getElementById('newApartmentType').value,
+        aptPrice: parseFloat(document.getElementById('newApartmentPrice').value),
+        aptBedrooms: parseInt(document.getElementById('newApartmentBedrooms').value),
+        aptLocation: document.getElementById('newApartmentLocation').value,
+        aptStatus: document.getElementById('newApartmentStatus').value,
+        aptDescription: document.getElementById('newApartmentDescription').value
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/apartments1`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apartment)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to create apartment: ${errorText}`);
+        }
+
+        showToast('Apartment created successfully', 'success');
+        closeModal('addApartmentModal');
+        loadApartmentListings();
+    } catch (error) {
+        console.error('Error creating apartment:', error);
+        showToast(error.message, 'error');
     }
+}
 
-    tableBody.innerHTML = '';
+// View apartment details
+async function viewApartmentDetails(apartmentId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/apartments1/${apartmentId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
 
-    if (!apartments || apartments.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center py-4">No apartments found in database</td>
-            </tr>
-        `;
-        return;
+        if (!response.ok) throw new Error('Apartment not found');
+
+        const apartment = await response.json();
+        const modal = document.getElementById('viewApartmentModal');
+        document.getElementById('viewApartmentId').textContent = apartment.aptId;
+        document.getElementById('viewApartmentType').textContent = apartment.aptType;
+        document.getElementById('viewApartmentPrice').textContent = `$${parseFloat(apartment.aptPrice).toLocaleString()}`;
+        document.getElementById('viewApartmentBedrooms').textContent = apartment.aptBedrooms;
+        document.getElementById('viewApartmentLocation').textContent = apartment.aptLocation;
+        document.getElementById('viewApartmentStatus').textContent = apartment.aptStatus;
+        document.getElementById('viewApartmentDescription').textContent = apartment.aptDescription || 'N/A';
+        modal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error viewing apartment:', error);
+        showToast('Failed to load apartment details', 'error');
     }
+}
 
-    apartments.forEach(apartment => {
-        const row = document.createElement('tr');
-        row.className = 'border-b hover:bg-gray-50';
+// Edit apartment
+async function editApartment(apartmentId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/apartments1/${apartmentId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
 
-        const price = apartment.aptPrice ?
-            `$${parseFloat(apartment.aptPrice).toLocaleString()}` : '$0';
+        if (!response.ok) throw new Error('Apartment not found');
 
-        const createdDate = apartment.aptCreatedAt ?
-            new Date(apartment.aptCreatedAt).toLocaleDateString() : 'N/A';
+        const apartment = await response.json();
+        const modal = document.getElementById('editApartmentModal');
+        document.getElementById('editApartmentId').value = apartment.aptId;
+        document.getElementById('editApartmentType').value = apartment.aptType;
+        document.getElementById('editApartmentPrice').value = apartment.aptPrice;
+        document.getElementById('editApartmentBedrooms').value = apartment.aptBedrooms;
+        document.getElementById('editApartmentLocation').value = apartment.aptLocation;
+        document.getElementById('editApartmentStatus').value = apartment.aptStatus;
+        document.getElementById('editApartmentDescription').value = apartment.aptDescription || '';
+        modal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading apartment for edit:', error);
+        showToast('Failed to load apartment for editing', 'error');
+    }
+}
 
-        row.innerHTML = `
-            <td class="p-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold">
-                        ${getInitials(apartment.aptType)}
-                    </div>
-                    <div>
-                        <div class="font-semibold">${apartment.aptType || 'N/A'}</div>
-                        <div class="text-sm text-gray-500">ID: ${apartment.aptId || 'N/A'}</div>
-                    </div>
-                </div>
-            </td>
-            <td class="p-3">${apartment.aptType || 'N/A'}</td>
-            <td class="p-3 font-semibold">${price}</td>
-            <td class="p-3">${apartment.aptBedrooms || 'N/A'}</td>
-            <td class="p-3">${apartment.aptLocation || 'N/A'}</td>
-            <td class="p-3">
-                <span class="px-2 py-1 rounded-full text-xs font-semibold ${
-            apartment.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
-                apartment.aptStatus === 'BOOKED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-        }">
-                    ${apartment.aptStatus || 'N/A'}
-                </span>
-            </td>
-            <td class="p-3">${createdDate}</td>
-            <td class="p-3">
-                <button class="bg-blue-500 text-white px-3 py-1 rounded mr-2" onclick="viewApartment(${apartment.aptId})">View</button>
-                <button class="bg-yellow-500 text-white px-3 py-1 rounded mr-2" onclick="editApartment(${apartment.aptId})">Edit</button>
-                <button class="bg-red-500 text-white px-3 py-1 rounded" onclick="deleteApartment(${apartment.aptId})">Delete</button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
+// Update apartment
+async function updateApartment() {
+    const apartmentId = document.getElementById('editApartmentId').value;
+    const apartment = {
+        aptType: document.getElementById('editApartmentType').value,
+        aptPrice: parseFloat(document.getElementById('editApartmentPrice').value),
+        aptBedrooms: parseInt(document.getElementById('editApartmentBedrooms').value),
+        aptLocation: document.getElementById('editApartmentLocation').value,
+        aptStatus: document.getElementById('editApartmentStatus').value,
+        aptDescription: document.getElementById('editApartmentDescription').value
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/apartments1/${apartmentId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apartment)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to update apartment: ${errorText}`);
+        }
+
+        showToast('Apartment updated successfully', 'success');
+        closeModal('editApartmentModal');
+        loadApartmentListings();
+    } catch (error) {
+        console.error('Error updating apartment:', error);
+        showToast(error.message, 'error');
+    }
+}
+
+// Delete apartment
+async function deleteApartment(apartmentId) {
+    if (!confirm('Are you sure you want to delete this apartment?')) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/apartments1/${apartmentId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error('Failed to delete apartment');
+
+        showToast('Apartment deleted successfully', 'success');
+        loadApartmentListings();
+    } catch (error) {
+        console.error('Error deleting apartment:', error);
+        showToast('Failed to delete apartment', 'error');
+    }
 }
 
 function updateApartmentStats(apartments) {
@@ -760,133 +888,15 @@ function updateApartmentStats(apartments) {
     }
 }
 
-// Apartment CRUD functions (viewApartment, editApartment, updateApartment, deleteApartment, createApartment - implement as needed)
-function viewApartment(id) {
-    // Fetch and populate view modal
-    showToast(`View apartment ${id}`, 'info');
-    openModal('viewApartmentModal');
+// Placeholder for analytics filter initialization
+function initAnalyticsFilter() {
+    // Add event listener if needed
 }
 
-async function editApartment(id) {
-    try {
-        // Load apartment details from backend
-        const res = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const apartment = await res.json();
-
-        // Build edit modal HTML
-        const modalHtml = `
-    <div id="editApartmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-4 overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Edit Apartment</h2>
-          <button onclick="closeModal('editApartmentModal'); document.getElementById('editApartmentModal').remove();" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <form id="editApartmentForm">
-          <div class="mb-4">
-            <label class="block text-gray-700">Type</label>
-            <input type="text" id="editType" value="${apartment.aptType || ''}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Price</label>
-            <input type="number" id="editPrice" value="${apartment.aptPrice || 0}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Bedrooms</label>
-            <input type="number" id="editBedrooms" value="${apartment.aptBedrooms || 1}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Location</label>
-            <input type="text" id="editLocation" value="${apartment.aptLocation || ''}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Description</label>
-            <textarea id="editDescription" class="w-full p-2 border rounded">${apartment.aptDescription || ''}</textarea>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Status</label>
-            <select id="editStatus" class="w-full p-2 border rounded">
-              <option value="AVAILABLE" ${apartment.aptStatus === 'AVAILABLE' ? 'selected' : ''}>AVAILABLE</option>
-              <option value="BOOKED" ${apartment.aptStatus === 'BOOKED' ? 'selected' : ''}>BOOKED</option>
-              <option value="PENDING" ${apartment.aptStatus === 'PENDING' ? 'selected' : ''}>PENDING</option>
-            </select>
-          </div>
-          <div class="flex justify-end gap-3">
-            <button type="button" onclick="closeModal('editApartmentModal'); document.getElementById('editApartmentModal').remove();" class="bg-gray-500 text-white px-6 py-2 rounded-lg">Cancel</button>
-            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">Save</button>
-          </div>
-        </form>
-      </div>
-    </div>`;
-
-        // Remove any existing modal and insert new one
-        const existing = document.getElementById('editApartmentModal');
-        if (existing) existing.remove();
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-        // Handle submit
-        const form = document.getElementById('editApartmentForm');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                aptType: document.getElementById('editType').value,
-                aptPrice: parseFloat(document.getElementById('editPrice').value),
-                aptBedrooms: parseInt(document.getElementById('editBedrooms').value, 10),
-                aptLocation: document.getElementById('editLocation').value,
-                aptDescription: document.getElementById('editDescription').value,
-                aptStatus: document.getElementById('editStatus').value
-            };
-            try {
-                const resp = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                showToast('Apartment updated successfully!', 'success');
-                document.getElementById('editApartmentModal').remove();
-                loadApartmentListings();
-            } catch (err) {
-                console.error('Update error:', err);
-                showToast('Failed to update apartment', 'error');
-            }
-        });
-    } catch (e) {
-        console.error('Failed to load apartment:', e);
-        showToast('Failed to load apartment details', 'error');
-    }
-}
-
-async function deleteApartment(id) {
-    if (!confirm('Are you sure you want to delete this apartment?')) return;
-    try {
-        const response = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, { method: 'DELETE' });
-        // Treat 200 OK, 202 Accepted, and 204 No Content as success
-        if (![200, 202, 204].includes(response.status)) {
-            const errorText = await response.text().catch(() => '');
-            throw new Error(`HTTP ${response.status}${errorText ? `: ${errorText}` : ''}`);
-        }
-        showToast('Apartment deleted successfully!', 'success');
-        // Refresh listings and stats
-        loadApartmentListings();
-    } catch (error) {
-        console.error('Delete error:', error);
-        showToast(`Error deleting apartment: ${error.message}`, 'error');
-    }
-}
-
-function createApartment() {
-    showToast('Apartment created successfully!', 'success');
-    closeModal('addApartmentModal');
-    loadApartmentListings();
-}
-
-function addNewApartment() {
-    openModal('addApartmentModal');
+// Placeholder for logout
+function adminLogout() {
+    sessionStorage.removeItem('currentUser');
+    window.location.href = 'index.html';
 }
 
 // User Management
@@ -936,186 +946,8 @@ async function populateUserTable(users) {
 
 
 
-    async function editApartment(id) {
-        const apartment = allProperties.find(apt => apt.aptId === id);
-        if (!apartment) {
-            showToast('Apartment not found', 'error');
-            return;
-        }
 
-        // Create edit modal
-        const modalHtml = `
-    <div id="editApartmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-4 overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Edit Apartment</h2>
-          <button onclick="closeModal('editApartmentModal')" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <form id="editApartmentForm">
-          <div class="mb-4">
-            <label class="block text-gray-700">Type</label>
-            <input type="text" id="editType" value="${apartment.aptType}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Price</label>
-            <input type="number" id="editPrice" value="${apartment.aptPrice}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Bedrooms</label>
-            <input type="number" id="editBedrooms" value="${apartment.aptBedrooms}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Location</label>
-            <input type="text" id="editLocation" value="${apartment.aptLocation}" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Description</label>
-            <textarea id="editDescription" class="w-full p-2 border rounded">${apartment.aptDescription || ''}</textarea>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Status</label>
-            <select id="editStatus" class="w-full p-2 border rounded">
-              <option value="AVAILABLE" ${apartment.aptStatus === 'AVAILABLE' ? 'selected' : ''}>AVAILABLE</option>
-              <option value="BOOKED" ${apartment.aptStatus === 'BOOKED' ? 'selected' : ''}>BOOKED</option>
-              <option value="PENDING" ${apartment.aptStatus === 'PENDING' ? 'selected' : ''}>PENDING</option>
-            </select>
-          </div>
-          <div class="flex justify-end gap-3">
-            <button type="button" onclick="closeModal('editApartmentModal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">Cancel</button>
-            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">Save</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `;
 
-        // Remove existing modal if any
-        const existingModal = document.getElementById('editApartmentModal');
-        if (existingModal) existingModal.remove();
-
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-        const form = document.getElementById('editApartmentForm');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const updatedApartment = {
-                aptType: document.getElementById('editType').value,
-                aptPrice: parseFloat(document.getElementById('editPrice').value),
-                aptBedrooms: parseInt(document.getElementById('editBedrooms').value),
-                aptLocation: document.getElementById('editLocation').value,
-                aptDescription: document.getElementById('editDescription').value,
-                aptStatus: document.getElementById('editStatus').value
-            };
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(updatedApartment)
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to update apartment');
-                }
-                showToast('Apartment updated successfully!', 'success');
-                closeModal('editApartmentModal');
-                loadApartmentListings(); // or loadMapProperties() to reload
-            } catch (error) {
-                showToast(`Error updating apartment: ${error.message}`, 'error');
-            }
-        });
-    }
-
-// Function for adding new apartment (call this from your + Create New Listing button, e.g., onclick="createNewApartment()")
-    async function createNewApartment() {
-        const modalHtml = `
-    <div id="createApartmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-4 overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Create New Apartment</h2>
-          <button onclick="closeModal('createApartmentModal')" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <form id="createApartmentForm">
-          <div class="mb-4">
-            <label class="block text-gray-700">Type</label>
-            <input type="text" id="createType" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Price</label>
-            <input type="number" id="createPrice" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Bedrooms</label>
-            <input type="number" id="createBedrooms" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Location</label>
-            <input type="text" id="createLocation" class="w-full p-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Description</label>
-            <textarea id="createDescription" class="w-full p-2 border rounded"></textarea>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700">Status</label>
-            <select id="createStatus" class="w-full p-2 border rounded">
-              <option value="AVAILABLE">AVAILABLE</option>
-              <option value="BOOKED">BOOKED</option>
-              <option value="PENDING">PENDING</option>
-            </select>
-          </div>
-          <div class="flex justify-end gap-3">
-            <button type="button" onclick="closeModal('createApartmentModal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">Cancel</button>
-            <button type="submit" class="bg-green-500 text-white px-6 py-2 rounded-lg">Create</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `;
-
-        const existingModal = document.getElementById('createApartmentModal');
-        if (existingModal) existingModal.remove();
-
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-        const form = document.getElementById('createApartmentForm');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const newApartment = {
-                aptType: document.getElementById('createType').value,
-                aptPrice: parseFloat(document.getElementById('createPrice').value),
-                aptBedrooms: parseInt(document.getElementById('createBedrooms').value),
-                aptLocation: document.getElementById('createLocation').value,
-                aptDescription: document.getElementById('createDescription').value,
-                aptStatus: document.getElementById('createStatus').value
-            };
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/apartments1`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(newApartment)
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to create apartment');
-                }
-                showToast('Apartment created successfully!', 'success');
-                closeModal('createApartmentModal');
-                loadApartmentListings(); // or loadMapProperties() to reload
-            } catch (error) {
-                showToast(`Error creating apartment: ${error.message}`, 'error');
-            }
-        });
-    }
-
-// Also, to ensure data is fetched from backend instead of sample, find and replace the line 'allProperties = nycSampleApartments;' with this in your load function (make the function async if needed):
-    const response = await fetch(`${API_BASE_URL}/admin/apartments1`);
-    allProperties = await response.json();
 
     users.forEach(user => {
         const row = document.createElement('tr');
@@ -1310,8 +1142,8 @@ function initMap() {
     L.control.scale().addTo(propertyMap);
 
     // Add legend
-    const legend = L.control({position: 'bottomright'});
-    legend.onAdd = function() {
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
         const div = L.DomUtil.create('div', 'map-legend');
         div.innerHTML = `
             <h4>Property Status</h4>
@@ -1397,11 +1229,10 @@ function updateMapWithProperties(properties) {
                         <p><strong>Size:</strong> ${property.squareFeet || 'N/A'} sq ft</p>
                         <p><strong>Built:</strong> ${property.yearBuilt || 'N/A'}</p>
                         <p><strong>Status:</strong> 
-                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${
-                property.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${property.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
                     property.aptStatus === 'BOOKED' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
-            }">
+                }">
                                 ${property.aptStatus || 'N/A'}
                             </span>
                         </p>
@@ -1482,11 +1313,10 @@ function populateMapPropertiesTable(properties) {
             <td class="p-3">${property.aptLocation || 'N/A'}</td>
             <td class="p-3">${property.aptBedrooms || 'N/A'}</td>
             <td class="p-3">
-                <span class="px-2 py-1 rounded-full text-xs font-semibold ${
-            property.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
+                <span class="px-2 py-1 rounded-full text-xs font-semibold ${property.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
                 property.aptStatus === 'BOOKED' ? 'bg-red-100 text-red-800' :
                     'bg-yellow-100 text-yellow-800'
-        }">
+            }">
                     ${property.aptStatus || 'N/A'}
                 </span>
             </td>
@@ -1580,11 +1410,10 @@ function viewApartmentDetails(apartmentId) {
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="font-medium">Status:</span>
-                                <span class="px-3 py-1 rounded-full text-sm font-semibold ${
-        apartment.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
+                                <span class="px-3 py-1 rounded-full text-sm font-semibold ${apartment.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
             apartment.aptStatus === 'BOOKED' ? 'bg-red-100 text-red-800' :
                 'bg-yellow-100 text-yellow-800'
-    }">
+        }">
                                     ${apartment.aptStatus}
                                 </span>
                             </div>
@@ -1603,8 +1432,8 @@ function viewApartmentDetails(apartmentId) {
                         <h3 class="text-lg font-semibold mb-3">Amenities</h3>
                         <div class="amenities-list">
                             ${apartment.amenities ? apartment.amenities.map(amenity =>
-        `<span class="amenity-tag">${amenity}</span>`
-    ).join('') : '<p class="text-gray-500">No amenities listed</p>'}
+            `<span class="amenity-tag">${amenity}</span>`
+        ).join('') : '<p class="text-gray-500">No amenities listed</p>'}
                         </div>
                     </div>
                 </div>
@@ -1617,10 +1446,10 @@ function viewApartmentDetails(apartmentId) {
                         Edit
                     </button>
                     ${apartment.aptStatus === 'AVAILABLE' ?
-        `<button onclick="bookApartment(${apartment.aptId})" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
+            `<button onclick="bookApartment(${apartment.aptId})" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
                             Book Now
                         </button>` : ''
-    }
+        }
                 </div>
             </div>
         </div>
@@ -1668,12 +1497,12 @@ function exportApartments() {
 }
 
 // Initialize application
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     if (!checkAdminAuth()) return;
 
     console.log('Admin panel loaded');
-    loadApartmentListings();  // Auto-load apartments
-    initAnalyticsFilter();  // Initialize analytics filter listener
+    loadApartmentListings(); // Auto-load apartments
+    initAnalyticsFilter(); // Initialize analytics filter listener
 
     // Add logout button to sidebar
     const sidebar = document.querySelector('aside nav ul');

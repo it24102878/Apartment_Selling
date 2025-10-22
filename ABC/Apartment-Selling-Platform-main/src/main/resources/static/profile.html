@@ -598,10 +598,18 @@
             <h2><i class="fas fa-star"></i> My Reviews</h2>
             <div id="my-reviews" class="list"></div>
 
-            <h2><i class="fas fa-calendar-check"></i> Booking History</h2>
+            <h2><i class="fas fa-calendar-check"></i> Booking History
+                <button class="btn btn-danger" onclick="clearBookingHistory()" style="margin-left: 12px; padding: 8px 16px; font-size: 14px;">
+                    <i class="fas fa-trash"></i> Clear History
+                </button>
+            </h2>
             <div id="booking-history" class="list"></div>
 
-            <h2><i class="fas fa-credit-card"></i> Payment History</h2>
+            <h2><i class="fas fa-credit-card"></i> Payment History
+                <button class="btn btn-danger" onclick="clearPaymentHistory()" style="margin-left: 12px; padding: 8px 16px; font-size: 14px;">
+                    <i class="fas fa-trash"></i> Clear History
+                </button>
+            </h2>
             <div id="payment-history" class="list"></div>
         </div>
     </div>
@@ -1035,6 +1043,31 @@
             console.error('Error loading payment history:', error);
             list.innerHTML = '<div class="msg err">Error loading payment history</div>';
         }
+    }
+
+    // Clear History Functions
+    function clearBookingHistory() {
+        if (!confirm('Are you sure you want to clear your booking history? This will only clear the display, not delete the actual records.')) {
+            return;
+        }
+
+        const list = document.getElementById('booking-history');
+        list.innerHTML = '<div class="msg">Booking history cleared</div>';
+
+        // Show success message
+        show('acc-ok', 'Booking history cleared successfully!', true);
+    }
+
+    function clearPaymentHistory() {
+        if (!confirm('Are you sure you want to clear your payment history? This will only clear the display, not delete the actual records.')) {
+            return;
+        }
+
+        const list = document.getElementById('payment-history');
+        list.innerHTML = '<div class="msg">Payment history cleared</div>';
+
+        // Show success message
+        show('acc-ok', 'Payment history cleared successfully!', true);
     }
 
     // Profile Picture Functions

@@ -2,6 +2,7 @@ package com.propertyhub.apartment.controller;
 
 import com.propertyhub.apartment.entity.Apartment;
 import com.propertyhub.apartment.service.ApartmentService;
+import com.propertyhub.apartment.strategy.ApartmentSortingContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +19,14 @@ public class ApartmentController {
     @Autowired
     private ApartmentService apartmentService;
 
+    @Autowired
+    private ApartmentSortingContext sortingContext;
+
     @GetMapping
-    public ResponseEntity<List<Apartment>> getAllApartments() {
+    public ResponseEntity<List<Apartment>> getAllApartments(@RequestParam(value = "sortBy", required = false) String sortBy) {
         List<Apartment> apartments = apartmentService.getAllApartments();
-        return ResponseEntity.ok(apartments);
+        List<Apartment> sorted = sortingContext.sort(apartments, sortBy);
+        return ResponseEntity.ok(sorted);
     }
 
     @PostMapping("/add")
