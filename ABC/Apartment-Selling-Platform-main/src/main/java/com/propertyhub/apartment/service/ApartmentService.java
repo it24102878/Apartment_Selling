@@ -1,6 +1,7 @@
 package com.propertyhub.apartment.service;
 
 import com.propertyhub.apartment.entity.Apartment;
+import com.propertyhub.apartment.observer.ApartmentNotificationService;
 import com.propertyhub.apartment.repository.ApartmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,9 @@ public class ApartmentService {
 
     @Autowired
     private ApartmentRepository apartmentRepository;
+
+    @Autowired(required = false)
+    private ApartmentNotificationService apartmentNotificationService;
 
     public static String embedOwnerInDescription(String description, Long userId) {
         String safeDesc = description == null ? "" : description;
@@ -64,7 +68,14 @@ public class ApartmentService {
 
     public Apartment addApartment(Apartment apartment) {
         apartment.setStatus("AVAILABLE");
-        return apartmentRepository.save(apartment);
+        Apartment saved = apartmentRepository.save(apartment);
+        // Notify observers that a new apartment is listed
+        if (apartmentNotificationService != null) {
+            try {
+                apartmentNotificationService.notifyNewApartment(saved);
+            } catch (Exception ignored) {}
+        }
+        return saved;
     }
 
     public boolean deleteApartmentIfOwner(Integer apartmentID, Long userId) {

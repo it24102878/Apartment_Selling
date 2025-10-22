@@ -1,6 +1,7 @@
 // src/main/java/com/propertyhub/model/Review.java
 package com.propertyhub.review.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.propertyhub.auth.entity.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
