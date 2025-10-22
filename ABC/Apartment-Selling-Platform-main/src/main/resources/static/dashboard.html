@@ -946,7 +946,7 @@
             try {
                 console.log('Dashboard: Attempting to fetch from:', `${API_BASE}/saved-properties/user/${userId}`);
 
-                const response = await fetch(`${API_BASE}/user/saved-properties/${userId}`, {
+                const response = await fetch(`${API_BASE}/saved-properties/user/${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${sessionStorage.getItem('authToken') || localStorage.getItem('authToken') || 'default-token'}`,
                         'Content-Type': 'application/json'
@@ -1241,7 +1241,7 @@
                 try {
                     console.log('Attempting direct database removal with savedPropertyID:', actualPropertyId);
 
-                    const response = await fetch(`${API_BASE}/user/saved-properties/${actualPropertyId}`, {
+                    const response = await fetch(`${API_BASE}/saved-properties/${actualPropertyId}`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1278,7 +1278,7 @@
                 try {
                     console.log('Searching for property in database by apartmentID:', actualPropertyId);
 
-                    const listResponse = await fetch(`${API_BASE}/user/saved-properties/${userId}`, {
+                    const listResponse = await fetch(`${API_BASE}/saved-properties/user/${userId}`, {
                         headers: {
                             'Authorization': `Bearer ${sessionStorage.getItem('authToken') || localStorage.getItem('authToken')}`
                         }
@@ -1304,7 +1304,7 @@
                         if (foundProperty) {
                             console.log('Found property in database with savedPropertyID:', foundProperty.savedPropertyID);
 
-                            const deleteResponse = await fetch(`${API_BASE}/user/saved-properties/${foundProperty.savedPropertyID}`, {
+                            const deleteResponse = await fetch(`${API_BASE}/saved-properties/${foundProperty.savedPropertyID}`, {
                                 method: 'DELETE',
                                 headers: {
                                     'Content-Type': 'application/json',

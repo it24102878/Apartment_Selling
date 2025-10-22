@@ -6,6 +6,8 @@
     <title>PROPERTYHUB</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="adstyles.css">
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         /* Analytics-specific styles (embed if adstyles.css not updated) */
         .analytics-filter { background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
@@ -316,12 +318,83 @@
             </table>
         </section>
 
+        <!-- Location Maps Section -->
+        <section id="locationMaps" class="section hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold">New York City Property Map</h1>
+                <div class="flex gap-4">
+                    <select id="mapFilter" class="p-2 rounded-lg border" onchange="filterMapMarkers(this.value)">
+                        <option value="all">All Properties</option>
+                        <option value="available">Available Only</option>
+                        <option value="booked">Booked Only</option>
+                        <option value="manhattan">Manhattan</option>
+                        <option value="brooklyn">Brooklyn</option>
+                        <option value="queens">Queens</option>
+                    </select>
+                    <button class="create-btn" onclick="refreshMapData()">🔄 Refresh Map</button>
+                </div>
+            </div>
+
+            <!-- Map Stats -->
+            <div class="user-stats-grid grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="stat-card bg-white p-4 rounded-lg shadow">
+                    <div class="text-2xl font-bold" id="totalProperties">0</div>
+                    <div class="text-sm text-gray-500">Total Properties</div>
+                    <div class="text-xs text-green-500">+2 this week</div>
+                    <div class="text-3xl mt-2">🏢</div>
+                </div>
+                <div class="stat-card bg-white p-4 rounded-lg shadow">
+                    <div class="text-2xl font-bold" id="mapAvailable">0</div>
+                    <div class="text-sm text-gray-500">Available</div>
+                    <div class="text-xs text-green-500">+1 this week</div>
+                    <div class="text-3xl mt-2">✅</div>
+                </div>
+                <div class="stat-card bg-white p-4 rounded-lg shadow">
+                    <div class="text-2xl font-bold" id="mapBooked">0</div>
+                    <div class="text-sm text-gray-500">Booked</div>
+                    <div class="text-xs text-red-500">-1 this month</div>
+                    <div class="text-3xl mt-2">📅</div>
+                </div>
+                <div class="stat-card bg-white p-4 rounded-lg shadow">
+                    <div class="text-2xl font-bold" id="avgPriceMap">$0</div>
+                    <div class="text-sm text-gray-500">Avg. Price</div>
+                    <div class="text-xs text-green-500">+3.1% this week</div>
+                    <div class="text-3xl mt-2">💰</div>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="bg-white p-6 rounded-lg shadow mb-6">
+                <div id="propertyMap" style="height: 500px; width: 100%; border-radius: 8px;"></div>
+            </div>
+
+            <!-- Property List -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">New York City Properties</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                        <tr class="bg-gray-200">
+                            <th class="py-2 px-4 text-left">Property</th>
+                            <th class="py-2 px-4 text-left">Type</th>
+                            <th class="py-2 px-4 text-left">Price</th>
+                            <th class="py-2 px-4 text-left">Location</th>
+                            <th class="py-2 px-4 text-left">Bedrooms</th>
+                            <th class="py-2 px-4 text-left">Status</th>
+                            <th class="py-2 px-4 text-left">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="mapPropertiesBody">
+                        <!-- Map properties will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <!-- Remaining sections -->
         <section id="revenueReports" class="section hidden">
             <!-- Revenue Reports content -->
-        </section>
-        <section id="locationMaps" class="section hidden">
-            <!-- Location Maps content -->
         </section>
 
         <!-- Modals (Add Apartment, View/Edit Apartment, Add User, View/Edit User - truncated for brevity) -->
@@ -437,6 +510,8 @@
     </main>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Leaflet JS for maps -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="adscript.js"></script>
 </body>
 </html>
