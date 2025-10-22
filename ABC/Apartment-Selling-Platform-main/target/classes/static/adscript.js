@@ -767,22 +767,115 @@ function viewApartment(id) {
     openModal('viewApartmentModal');
 }
 
-function editApartment(id) {
-    // Fetch and populate edit modal
-    showToast(`Edit apartment ${id}`, 'info');
-    openModal('editApartmentModal');
+async function editApartment(id) {
+    try {
+        // Load apartment details from backend
+        const res = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const apartment = await res.json();
+
+        // Build edit modal HTML
+        const modalHtml = `
+    <div id="editApartmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-4 overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Edit Apartment</h2>
+          <button onclick="closeModal('editApartmentModal'); document.getElementById('editApartmentModal').remove();" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="editApartmentForm">
+          <div class="mb-4">
+            <label class="block text-gray-700">Type</label>
+            <input type="text" id="editType" value="${apartment.aptType || ''}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Price</label>
+            <input type="number" id="editPrice" value="${apartment.aptPrice || 0}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Bedrooms</label>
+            <input type="number" id="editBedrooms" value="${apartment.aptBedrooms || 1}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Location</label>
+            <input type="text" id="editLocation" value="${apartment.aptLocation || ''}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Description</label>
+            <textarea id="editDescription" class="w-full p-2 border rounded">${apartment.aptDescription || ''}</textarea>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Status</label>
+            <select id="editStatus" class="w-full p-2 border rounded">
+              <option value="AVAILABLE" ${apartment.aptStatus === 'AVAILABLE' ? 'selected' : ''}>AVAILABLE</option>
+              <option value="BOOKED" ${apartment.aptStatus === 'BOOKED' ? 'selected' : ''}>BOOKED</option>
+              <option value="PENDING" ${apartment.aptStatus === 'PENDING' ? 'selected' : ''}>PENDING</option>
+            </select>
+          </div>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeModal('editApartmentModal'); document.getElementById('editApartmentModal').remove();" class="bg-gray-500 text-white px-6 py-2 rounded-lg">Cancel</button>
+            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+
+        // Remove any existing modal and insert new one
+        const existing = document.getElementById('editApartmentModal');
+        if (existing) existing.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Handle submit
+        const form = document.getElementById('editApartmentForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                aptType: document.getElementById('editType').value,
+                aptPrice: parseFloat(document.getElementById('editPrice').value),
+                aptBedrooms: parseInt(document.getElementById('editBedrooms').value, 10),
+                aptLocation: document.getElementById('editLocation').value,
+                aptDescription: document.getElementById('editDescription').value,
+                aptStatus: document.getElementById('editStatus').value
+            };
+            try {
+                const resp = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                showToast('Apartment updated successfully!', 'success');
+                document.getElementById('editApartmentModal').remove();
+                loadApartmentListings();
+            } catch (err) {
+                console.error('Update error:', err);
+                showToast('Failed to update apartment', 'error');
+            }
+        });
+    } catch (e) {
+        console.error('Failed to load apartment:', e);
+        showToast('Failed to load apartment details', 'error');
+    }
 }
 
-function updateApartment() {
-    showToast('Apartment updated successfully!', 'success');
-    closeModal('editApartmentModal');
-    loadApartmentListings();
-}
-
-function deleteApartment(id) {
-    if (confirm('Are you sure?')) {
-        showToast(`Apartment ${id} deleted`, 'success');
+async function deleteApartment(id) {
+    if (!confirm('Are you sure you want to delete this apartment?')) return;
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, { method: 'DELETE' });
+        // Treat 200 OK, 202 Accepted, and 204 No Content as success
+        if (![200, 202, 204].includes(response.status)) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(`HTTP ${response.status}${errorText ? `: ${errorText}` : ''}`);
+        }
+        showToast('Apartment deleted successfully!', 'success');
+        // Refresh listings and stats
         loadApartmentListings();
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast(`Error deleting apartment: ${error.message}`, 'error');
     }
 }
 
@@ -842,25 +935,6 @@ async function populateUserTable(users) {
     }
 
 
-    // Add these functions to your adscript.js file after the bookApartment function
-
-    async function deleteApartment(id) {
-        if (confirm('Are you sure you want to delete this apartment?')) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, {
-                    method: 'DELETE'
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to delete apartment');
-                }
-                showToast('Apartment deleted successfully!', 'success');
-                // Reload the listings (use your actual reload function, e.g., loadApartmentListings or refreshMapData)
-                loadApartmentListings(); // or loadMapProperties() if that's the one used for listings
-            } catch (error) {
-                showToast(`Error deleting apartment: ${error.message}`, 'error');
-            }
-        }
-    }
 
     async function editApartment(id) {
         const apartment = allProperties.find(apt => apt.aptId === id);
