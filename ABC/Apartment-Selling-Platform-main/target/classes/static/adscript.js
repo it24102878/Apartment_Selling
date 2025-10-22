@@ -3,6 +3,200 @@ let currentApartmentData = {};
 let currentFilter = '';  // For analytics filter
 const API_BASE_URL = 'http://localhost:8080';
 
+// Location Maps Variables
+let propertyMap;
+let mapMarkers = [];
+let allProperties = [];
+
+// New York City coordinates for properties
+const nycCoordinates = {
+    manhattan: [
+        { lat: 40.7589, lng: -73.9851, area: "Times Square" },
+        { lat: 40.7614, lng: -73.9776, area: "Central Park South" },
+        { lat: 40.7505, lng: -73.9934, area: "Hudson Yards" },
+        { lat: 40.7282, lng: -73.9942, area: "Greenwich Village" },
+        { lat: 40.7831, lng: -73.9712, area: "Upper East Side" },
+        { lat: 40.7580, lng: -73.9855, area: "Midtown West" },
+        { lat: 40.7536, lng: -73.9832, area: "Herald Square" },
+        { lat: 40.6892, lng: -74.0445, area: "Financial District" }
+    ],
+    brooklyn: [
+        { lat: 40.6782, lng: -73.9442, area: "Williamsburg" },
+        { lat: 40.6869, lng: -73.9962, area: "Park Slope" },
+        { lat: 40.6451, lng: -74.0151, area: "Bay Ridge" },
+        { lat: 40.5907, lng: -73.9970, area: "Coney Island" },
+        { lat: 40.6981, lng: -73.9972, area: "DUMBO" },
+        { lat: 40.6602, lng: -73.9690, area: "Crown Heights" }
+    ],
+    queens: [
+        { lat: 40.7421, lng: -73.9358, area: "Astoria" },
+        { lat: 40.7282, lng: -73.7949, area: "Flushing" },
+        { lat: 40.7453, lng: -73.9555, area: "Long Island City" },
+        { lat: 40.7058, lng: -73.8173, area: "Jamaica" },
+        { lat: 40.7579, lng: -73.8256, area: "Forest Hills" }
+    ]
+};
+
+// Sample NYC apartment data
+const nycSampleApartments = [
+    {
+        aptId: 1001,
+        aptType: "Luxury Condo",
+        aptPrice: 4500,
+        aptBedrooms: 2,
+        aptLocation: "Times Square, Manhattan",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Modern luxury condo with stunning city views and high-end finishes. Features floor-to-ceiling windows, gourmet kitchen, and spa-like bathrooms.",
+        amenities: ["Gym", "Pool", "Concierge", "Parking", "Roof Deck"],
+        squareFeet: 1200,
+        yearBuilt: 2020,
+        contact: "John Smith - (555) 123-4567"
+    },
+    {
+        aptId: 1002,
+        aptType: "Studio Apartment",
+        aptPrice: 2800,
+        aptBedrooms: 1,
+        aptLocation: "Greenwich Village, Manhattan",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Charming studio in historic building with original hardwood floors and exposed brick. Perfect for young professionals.",
+        amenities: ["Laundry", "Pet Friendly", "Bike Storage"],
+        squareFeet: 600,
+        yearBuilt: 1950,
+        contact: "Sarah Johnson - (555) 987-6543"
+    },
+    {
+        aptId: 1003,
+        aptType: "Penthouse",
+        aptPrice: 12000,
+        aptBedrooms: 3,
+        aptLocation: "Upper East Side, Manhattan",
+        aptStatus: "BOOKED",
+        aptDescription: "Spacious penthouse with private terrace and panoramic city views. Features high ceilings, chef's kitchen, and master suite with walk-in closet.",
+        amenities: ["Terrace", "Gym", "Concierge", "Valet", "Wine Storage"],
+        squareFeet: 2200,
+        yearBuilt: 2018,
+        contact: "Michael Brown - (555) 456-7890"
+    },
+    {
+        aptId: 1004,
+        aptType: "Loft",
+        aptPrice: 3800,
+        aptBedrooms: 1,
+        aptLocation: "Williamsburg, Brooklyn",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Industrial loft with high ceilings, exposed brick, and large windows. Open concept living with modern kitchen and bathroom.",
+        amenities: ["Exposed Brick", "High Ceilings", "Roof Access", "Pet Friendly"],
+        squareFeet: 950,
+        yearBuilt: 1920,
+        contact: "Emily Davis - (555) 234-5678"
+    },
+    {
+        aptId: 1005,
+        aptType: "Family Apartment",
+        aptPrice: 3200,
+        aptBedrooms: 3,
+        aptLocation: "Astoria, Queens",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Spacious family apartment near parks and schools. Features updated kitchen, hardwood floors, and ample closet space.",
+        amenities: ["Park View", "Playground", "Storage", "Laundry"],
+        squareFeet: 1400,
+        yearBuilt: 1985,
+        contact: "Robert Wilson - (555) 345-6789"
+    },
+    {
+        aptId: 1006,
+        aptType: "Luxury High-Rise",
+        aptPrice: 5200,
+        aptBedrooms: 2,
+        aptLocation: "Long Island City, Queens",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Brand new high-rise with stunning East River views. Building amenities include pool, fitness center, and resident lounge.",
+        amenities: ["River View", "Gym", "Pool", "Lounge", "Concierge"],
+        squareFeet: 1100,
+        yearBuilt: 2022,
+        contact: "Jennifer Lee - (555) 567-8901"
+    },
+    {
+        aptId: 1007,
+        aptType: "Brownstone",
+        aptPrice: 4100,
+        aptBedrooms: 2,
+        aptLocation: "Park Slope, Brooklyn",
+        aptStatus: "PENDING",
+        aptDescription: "Classic brownstone with original details, fireplace, and private garden. Located on tree-lined street near Prospect Park.",
+        amenities: ["Garden", "Original Details", "Fireplace", "Pet Friendly"],
+        squareFeet: 1300,
+        yearBuilt: 1905,
+        contact: "David Miller - (555) 678-9012"
+    },
+    {
+        aptId: 1008,
+        aptType: "Modern Apartment",
+        aptPrice: 3500,
+        aptBedrooms: 1,
+        aptLocation: "Hudson Yards, Manhattan",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Sleek modern apartment in new development with smart home features and luxury finishes. Close to transportation and shopping.",
+        amenities: ["Smart Home", "Gym", "Concierge", "Bike Storage"],
+        squareFeet: 750,
+        yearBuilt: 2021,
+        contact: "Amanda Taylor - (555) 789-0123"
+    },
+    {
+        aptId: 1009,
+        aptType: "Waterfront Condo",
+        aptPrice: 6800,
+        aptBedrooms: 2,
+        aptLocation: "DUMBO, Brooklyn",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Luxury waterfront condo with breathtaking bridge views. Features open layout, premium appliances, and private balcony.",
+        amenities: ["Water View", "Balcony", "Gym", "Parking", "Concierge"],
+        squareFeet: 1500,
+        yearBuilt: 2019,
+        contact: "Christopher Clark - (555) 890-1234"
+    },
+    {
+        aptId: 1010,
+        aptType: "Garden Apartment",
+        aptPrice: 2900,
+        aptBedrooms: 2,
+        aptLocation: "Forest Hills, Queens",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Ground floor apartment with private garden in quiet neighborhood. Recently renovated with modern kitchen and bathroom.",
+        amenities: ["Private Garden", "Pet Friendly", "Storage", "Laundry"],
+        squareFeet: 1000,
+        yearBuilt: 1960,
+        contact: "Jessica White - (555) 901-2345"
+    },
+    {
+        aptId: 1011,
+        aptType: "Luxury Studio",
+        aptPrice: 3200,
+        aptBedrooms: 1,
+        aptLocation: "Chelsea, Manhattan",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Luxury studio in prime Chelsea location with high-end finishes and building amenities. Walking distance to galleries and restaurants.",
+        amenities: ["Gym", "Roof Deck", "Concierge", "Package Room"],
+        squareFeet: 650,
+        yearBuilt: 2015,
+        contact: "Daniel Harris - (555) 012-3456"
+    },
+    {
+        aptId: 1012,
+        aptType: "Townhouse",
+        aptPrice: 5500,
+        aptBedrooms: 3,
+        aptLocation: "Carroll Gardens, Brooklyn",
+        aptStatus: "AVAILABLE",
+        aptDescription: "Beautiful townhouse with garden, fireplace, and original details. Perfect for families seeking space and character.",
+        amenities: ["Garden", "Fireplace", "Original Details", "Pet Friendly"],
+        squareFeet: 1800,
+        yearBuilt: 1930,
+        contact: "Michelle Martin - (555) 123-4567"
+    }
+];
+
 // Check admin authentication
 function checkAdminAuth() {
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
@@ -13,6 +207,7 @@ function checkAdminAuth() {
     }
     return true;
 }
+
 async function loadAnalytics(filterStatus = '') {
     currentFilter = filterStatus;
     const url = filterStatus ? `${API_BASE_URL}/admin/payments/analytics?status=${encodeURIComponent(filterStatus)}` : `${API_BASE_URL}/admin/payments/analytics`;
@@ -80,6 +275,10 @@ function loadSection(section) {
         loadUserManagement();
     } else if (section === 'analytics') {
         loadAnalytics();  // Load analytics on section select
+    } else if (section === 'locationMaps') {
+        loadLocationMaps();  // Load location maps
+    } else if (section === 'dashboard') {
+        loadDashboard();  // Load dashboard
     }
 }
 
@@ -436,24 +635,6 @@ function updateRecentActivity(apartments, users) {
     }
 }
 
-// Update the existing loadSection function
-function loadSection(section) {
-    if (!checkAdminAuth()) return;
-
-    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-    document.getElementById(section).classList.remove('hidden');
-
-    if (section === 'apartmentListings') {
-        loadApartmentListings();
-    } else if (section === 'userManagement') {
-        loadUserManagement();
-    } else if (section === 'analytics') {
-        loadAnalytics();
-    } else if (section === 'dashboard') {
-        loadDashboard();  // Add this line
-    }
-}
-
 function cancelEdit(id) {
     const amountCell = document.getElementById(`amount-${id}`);
     const form = document.getElementById(`form-${id}`);
@@ -641,7 +822,7 @@ function loadUserManagement() {
         });
 }
 
-function populateUserTable(users) {
+async function populateUserTable(users) {
     const tableBody = document.getElementById('userTableBody');
 
     if (!tableBody) {
@@ -659,6 +840,208 @@ function populateUserTable(users) {
         `;
         return;
     }
+
+
+    // Add these functions to your adscript.js file after the bookApartment function
+
+    async function deleteApartment(id) {
+        if (confirm('Are you sure you want to delete this apartment?')) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to delete apartment');
+                }
+                showToast('Apartment deleted successfully!', 'success');
+                // Reload the listings (use your actual reload function, e.g., loadApartmentListings or refreshMapData)
+                loadApartmentListings(); // or loadMapProperties() if that's the one used for listings
+            } catch (error) {
+                showToast(`Error deleting apartment: ${error.message}`, 'error');
+            }
+        }
+    }
+
+    async function editApartment(id) {
+        const apartment = allProperties.find(apt => apt.aptId === id);
+        if (!apartment) {
+            showToast('Apartment not found', 'error');
+            return;
+        }
+
+        // Create edit modal
+        const modalHtml = `
+    <div id="editApartmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-4 overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Edit Apartment</h2>
+          <button onclick="closeModal('editApartmentModal')" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="editApartmentForm">
+          <div class="mb-4">
+            <label class="block text-gray-700">Type</label>
+            <input type="text" id="editType" value="${apartment.aptType}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Price</label>
+            <input type="number" id="editPrice" value="${apartment.aptPrice}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Bedrooms</label>
+            <input type="number" id="editBedrooms" value="${apartment.aptBedrooms}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Location</label>
+            <input type="text" id="editLocation" value="${apartment.aptLocation}" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Description</label>
+            <textarea id="editDescription" class="w-full p-2 border rounded">${apartment.aptDescription || ''}</textarea>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Status</label>
+            <select id="editStatus" class="w-full p-2 border rounded">
+              <option value="AVAILABLE" ${apartment.aptStatus === 'AVAILABLE' ? 'selected' : ''}>AVAILABLE</option>
+              <option value="BOOKED" ${apartment.aptStatus === 'BOOKED' ? 'selected' : ''}>BOOKED</option>
+              <option value="PENDING" ${apartment.aptStatus === 'PENDING' ? 'selected' : ''}>PENDING</option>
+            </select>
+          </div>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeModal('editApartmentModal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">Cancel</button>
+            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-lg">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('editApartmentModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const form = document.getElementById('editApartmentForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const updatedApartment = {
+                aptType: document.getElementById('editType').value,
+                aptPrice: parseFloat(document.getElementById('editPrice').value),
+                aptBedrooms: parseInt(document.getElementById('editBedrooms').value),
+                aptLocation: document.getElementById('editLocation').value,
+                aptDescription: document.getElementById('editDescription').value,
+                aptStatus: document.getElementById('editStatus').value
+            };
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/apartments1/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(updatedApartment)
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to update apartment');
+                }
+                showToast('Apartment updated successfully!', 'success');
+                closeModal('editApartmentModal');
+                loadApartmentListings(); // or loadMapProperties() to reload
+            } catch (error) {
+                showToast(`Error updating apartment: ${error.message}`, 'error');
+            }
+        });
+    }
+
+// Function for adding new apartment (call this from your + Create New Listing button, e.g., onclick="createNewApartment()")
+    async function createNewApartment() {
+        const modalHtml = `
+    <div id="createApartmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mx-4 overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Create New Apartment</h2>
+          <button onclick="closeModal('createApartmentModal')" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="createApartmentForm">
+          <div class="mb-4">
+            <label class="block text-gray-700">Type</label>
+            <input type="text" id="createType" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Price</label>
+            <input type="number" id="createPrice" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Bedrooms</label>
+            <input type="number" id="createBedrooms" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Location</label>
+            <input type="text" id="createLocation" class="w-full p-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Description</label>
+            <textarea id="createDescription" class="w-full p-2 border rounded"></textarea>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Status</label>
+            <select id="createStatus" class="w-full p-2 border rounded">
+              <option value="AVAILABLE">AVAILABLE</option>
+              <option value="BOOKED">BOOKED</option>
+              <option value="PENDING">PENDING</option>
+            </select>
+          </div>
+          <div class="flex justify-end gap-3">
+            <button type="button" onclick="closeModal('createApartmentModal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg">Cancel</button>
+            <button type="submit" class="bg-green-500 text-white px-6 py-2 rounded-lg">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+        const existingModal = document.getElementById('createApartmentModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const form = document.getElementById('createApartmentForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newApartment = {
+                aptType: document.getElementById('createType').value,
+                aptPrice: parseFloat(document.getElementById('createPrice').value),
+                aptBedrooms: parseInt(document.getElementById('createBedrooms').value),
+                aptLocation: document.getElementById('createLocation').value,
+                aptDescription: document.getElementById('createDescription').value,
+                aptStatus: document.getElementById('createStatus').value
+            };
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/apartments1`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(newApartment)
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to create apartment');
+                }
+                showToast('Apartment created successfully!', 'success');
+                closeModal('createApartmentModal');
+                loadApartmentListings(); // or loadMapProperties() to reload
+            } catch (error) {
+                showToast(`Error creating apartment: ${error.message}`, 'error');
+            }
+        });
+    }
+
+// Also, to ensure data is fetched from backend instead of sample, find and replace the line 'allProperties = nycSampleApartments;' with this in your load function (make the function async if needed):
+    const response = await fetch(`${API_BASE_URL}/admin/apartments1`);
+    allProperties = await response.json();
 
     users.forEach(user => {
         const row = document.createElement('tr');
@@ -829,6 +1212,376 @@ function createUser() {
         .catch(error => {
             showToast('Error creating user: ' + error.message, 'error');
         });
+}
+
+// Location Maps Functions
+function loadLocationMaps() {
+    // Initialize the map
+    initMap();
+
+    // Load property data
+    loadMapProperties();
+}
+
+function initMap() {
+    // Initialize Leaflet map centered on New York City
+    propertyMap = L.map('propertyMap').setView([40.7128, -74.0060], 12);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(propertyMap);
+
+    // Add scale control
+    L.control.scale().addTo(propertyMap);
+
+    // Add legend
+    const legend = L.control({position: 'bottomright'});
+    legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.innerHTML = `
+            <h4>Property Status</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #10b981;"></div>
+                <span>Available</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ef4444;"></div>
+                <span>Booked</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f59e0b;"></div>
+                <span>Pending</span>
+            </div>
+        `;
+        return div;
+    };
+    legend.addTo(propertyMap);
+}
+
+function loadMapProperties() {
+    // For demo purposes, we'll use the sample NYC apartments
+    // In a real application, this would fetch from your API
+    setTimeout(() => {
+        allProperties = nycSampleApartments;
+        updateMapWithProperties(allProperties);
+        updateMapStats(allProperties);
+        populateMapPropertiesTable(allProperties);
+    }, 500);
+}
+
+function updateMapWithProperties(properties) {
+    // Clear existing markers
+    mapMarkers.forEach(marker => propertyMap.removeLayer(marker));
+    mapMarkers = [];
+
+    // Track used coordinates to avoid overlap
+    const usedCoordinates = {};
+
+    properties.forEach((property, index) => {
+        // Determine borough based on location
+        let borough = 'manhattan';
+        if (property.aptLocation.toLowerCase().includes('brooklyn')) borough = 'brooklyn';
+        if (property.aptLocation.toLowerCase().includes('queens')) borough = 'queens';
+
+        // Get coordinates for this borough
+        const boroughCoords = nycCoordinates[borough];
+
+        // Find an available coordinate for this property
+        let coordIndex = index % boroughCoords.length;
+        let attempts = 0;
+
+        // Try to find an unused coordinate
+        while (usedCoordinates[`${boroughCoords[coordIndex].lat},${boroughCoords[coordIndex].lng}`] && attempts < boroughCoords.length) {
+            coordIndex = (coordIndex + 1) % boroughCoords.length;
+            attempts++;
+        }
+
+        const coords = boroughCoords[coordIndex];
+        usedCoordinates[`${coords.lat},${coords.lng}`] = true;
+
+        // Create custom icon based on status
+        const iconColor = property.aptStatus === 'AVAILABLE' ? '#10b981' :
+            property.aptStatus === 'BOOKED' ? '#ef4444' : '#f59e0b';
+
+        const customIcon = L.divIcon({
+            html: `<div style="background-color: ${iconColor}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+            className: 'property-marker',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        const marker = L.marker([coords.lat, coords.lng], { icon: customIcon })
+            .addTo(propertyMap)
+            .bindPopup(`
+                <div class="p-2" style="min-width: 250px;">
+                    <h3 class="font-bold text-lg mb-2">${property.aptType || 'Property'}</h3>
+                    <div class="space-y-1 text-sm">
+                        <p><strong>Price:</strong> $${parseFloat(property.aptPrice || 0).toLocaleString()}/month</p>
+                        <p><strong>Bedrooms:</strong> ${property.aptBedrooms || 'N/A'}</p>
+                        <p><strong>Location:</strong> ${property.aptLocation || 'N/A'}</p>
+                        <p><strong>Size:</strong> ${property.squareFeet || 'N/A'} sq ft</p>
+                        <p><strong>Built:</strong> ${property.yearBuilt || 'N/A'}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${
+                property.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
+                    property.aptStatus === 'BOOKED' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+            }">
+                                ${property.aptStatus || 'N/A'}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="mt-3">
+                        <h4 class="font-semibold">Amenities:</h4>
+                        <p class="text-xs">${property.amenities ? property.amenities.join(', ') : 'None listed'}</p>
+                    </div>
+                    <button onclick="viewApartmentDetails(${property.aptId})" 
+                            class="mt-3 bg-blue-500 text-white px-3 py-2 rounded text-sm w-full hover:bg-blue-600 transition-colors">
+                        View Full Details
+                    </button>
+                </div>
+            `);
+
+        mapMarkers.push(marker);
+    });
+
+    // Adjust map bounds to show all markers
+    if (properties.length > 0) {
+        const group = new L.featureGroup(mapMarkers);
+        propertyMap.fitBounds(group.getBounds().pad(0.1));
+    }
+}
+
+function updateMapStats(properties) {
+    const total = properties.length;
+    const available = properties.filter(p => p.aptStatus === 'AVAILABLE').length;
+    const booked = properties.filter(p => p.aptStatus === 'BOOKED').length;
+
+    // Calculate average price
+    const totalPrice = properties.reduce((sum, prop) => sum + (parseFloat(prop.aptPrice) || 0), 0);
+    const avgPrice = total > 0 ? totalPrice / total : 0;
+
+    document.getElementById('totalProperties').textContent = total;
+    document.getElementById('mapAvailable').textContent = available;
+    document.getElementById('mapBooked').textContent = booked;
+    document.getElementById('avgPriceMap').textContent = `$${Math.round(avgPrice).toLocaleString()}`;
+}
+
+function populateMapPropertiesTable(properties) {
+    const tableBody = document.getElementById('mapPropertiesBody');
+
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+
+    if (!properties || properties.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">No properties found</td>
+            </tr>
+        `;
+        return;
+    }
+
+    properties.forEach(property => {
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50';
+
+        const price = property.aptPrice ?
+            `$${parseFloat(property.aptPrice).toLocaleString()}` : '$0';
+
+        row.innerHTML = `
+            <td class="p-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold">
+                        ${getInitials(property.aptType)}
+                    </div>
+                    <div>
+                        <div class="font-semibold">${property.aptType || 'N/A'}</div>
+                        <div class="text-sm text-gray-500">ID: ${property.aptId || 'N/A'}</div>
+                    </div>
+                </div>
+            </td>
+            <td class="p-3">${property.aptType || 'N/A'}</td>
+            <td class="p-3 font-semibold">${price}</td>
+            <td class="p-3">${property.aptLocation || 'N/A'}</td>
+            <td class="p-3">${property.aptBedrooms || 'N/A'}</td>
+            <td class="p-3">
+                <span class="px-2 py-1 rounded-full text-xs font-semibold ${
+            property.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
+                property.aptStatus === 'BOOKED' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+        }">
+                    ${property.aptStatus || 'N/A'}
+                </span>
+            </td>
+            <td class="p-3">
+                <button class="bg-blue-500 text-white px-3 py-1 rounded mr-2" 
+                        onclick="viewApartmentDetails(${property.aptId})">
+                    View
+                </button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function filterMapMarkers(filter) {
+    let filteredProperties = allProperties;
+
+    if (filter === 'available') {
+        filteredProperties = allProperties.filter(p => p.aptStatus === 'AVAILABLE');
+    } else if (filter === 'booked') {
+        filteredProperties = allProperties.filter(p => p.aptStatus === 'BOOKED');
+    } else if (filter === 'manhattan') {
+        filteredProperties = allProperties.filter(p => p.aptLocation.toLowerCase().includes('manhattan'));
+    } else if (filter === 'brooklyn') {
+        filteredProperties = allProperties.filter(p => p.aptLocation.toLowerCase().includes('brooklyn'));
+    } else if (filter === 'queens') {
+        filteredProperties = allProperties.filter(p => p.aptLocation.toLowerCase().includes('queens'));
+    }
+
+    updateMapWithProperties(filteredProperties);
+    populateMapPropertiesTable(filteredProperties);
+    updateMapStats(filteredProperties);
+}
+
+function refreshMapData() {
+    loadMapProperties();
+    showToast('Map data refreshed successfully!', 'success');
+}
+
+function viewApartmentDetails(apartmentId) {
+    const apartment = allProperties.find(apt => apt.aptId === apartmentId);
+    if (!apartment) {
+        showToast('Apartment not found', 'error');
+        return;
+    }
+
+    // Create and show a detailed modal for the apartment
+    const modalHtml = `
+        <div id="apartmentDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">${apartment.aptType}</h2>
+                    <button onclick="closeModal('apartmentDetailsModal')" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="apartment-details-grid">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-3">Property Details</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="font-medium">Property ID:</span>
+                                <span>${apartment.aptId}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Type:</span>
+                                <span>${apartment.aptType}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Price:</span>
+                                <span class="font-semibold">$${apartment.aptPrice.toLocaleString()}/month</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Bedrooms:</span>
+                                <span>${apartment.aptBedrooms}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Location:</span>
+                                <span>${apartment.aptLocation}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Square Feet:</span>
+                                <span>${apartment.squareFeet || 'N/A'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Year Built:</span>
+                                <span>${apartment.yearBuilt || 'N/A'}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium">Status:</span>
+                                <span class="px-3 py-1 rounded-full text-sm font-semibold ${
+        apartment.aptStatus === 'AVAILABLE' ? 'bg-green-100 text-green-800' :
+            apartment.aptStatus === 'BOOKED' ? 'bg-red-100 text-red-800' :
+                'bg-yellow-100 text-yellow-800'
+    }">
+                                    ${apartment.aptStatus}
+                                </span>
+                            </div>
+                        </div>
+
+                        <h3 class="text-lg font-semibold mt-6 mb-3">Contact Information</h3>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <p class="text-blue-800">${apartment.contact || 'Contact information not available'}</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-semibold mb-3">Description</h3>
+                        <p class="text-gray-700 mb-6">${apartment.aptDescription}</p>
+                        
+                        <h3 class="text-lg font-semibold mb-3">Amenities</h3>
+                        <div class="amenities-list">
+                            ${apartment.amenities ? apartment.amenities.map(amenity =>
+        `<span class="amenity-tag">${amenity}</span>`
+    ).join('') : '<p class="text-gray-500">No amenities listed</p>'}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-8 pt-6 border-t">
+                    <button onclick="closeModal('apartmentDetailsModal')" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+                        Close
+                    </button>
+                    <button onclick="editApartment(${apartment.aptId})" class="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors">
+                        Edit
+                    </button>
+                    ${apartment.aptStatus === 'AVAILABLE' ?
+        `<button onclick="bookApartment(${apartment.aptId})" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                            Book Now
+                        </button>` : ''
+    }
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('apartmentDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Create and append the modal
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHtml;
+    document.body.appendChild(modalDiv);
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function bookApartment(apartmentId) {
+    if (confirm('Are you sure you want to book this apartment?')) {
+        // In a real application, this would make an API call to book the apartment
+        const apartment = allProperties.find(apt => apt.aptId === apartmentId);
+        if (apartment) {
+            apartment.aptStatus = 'BOOKED';
+            showToast(`Apartment ${apartmentId} booked successfully!`, 'success');
+            closeModal('apartmentDetailsModal');
+            refreshMapData();
+        }
+    }
 }
 
 // Export functions (placeholders)

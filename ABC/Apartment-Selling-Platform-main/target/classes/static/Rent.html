@@ -1541,7 +1541,7 @@
 <div class="toast" id="toast">
     <div class="toast-content">
         <i class="fas fa-check-circle toast-icon"></i>
-        <span class="toast-message" id="toastMessage">Property saved successfully!</span>
+        <span class="toast-message" id="toastMessage"></span>
     </div>
 </div>
 
@@ -1552,15 +1552,110 @@
 
     // Initialize user session
     function initializeUserSession() {
-        const sessionUser = JSON.parse(localStorage.getItem('sessionUser') || '{}');
-        if (sessionUser && sessionUser.userID) {
-            currentUserID = sessionUser.userID;
-            console.log('Current user ID:', currentUserID);
+        // Check multiple possible localStorage keys for user session
+        let sessionUser = null;
+
+        // Try different localStorage keys used across the application
+        const possibleKeys = ['sessionUser', 'currentUser', 'loggedInUser', 'user'];
+
+        for (const key of possibleKeys) {
+            const stored = localStorage.getItem(key);
+            if (stored && stored !== 'null' && stored !== '{}') {
+                try {
+                    sessionUser = JSON.parse(stored);
+                    if (sessionUser && (sessionUser.userID || sessionUser.id)) {
+                        console.log(`Found user session in localStorage key: ${key}`, sessionUser);
+                        break;
+                    }
+                } catch (e) {
+                    console.warn(`Error parsing ${key} from localStorage:`, e);
+                }
+            }
+        }
+
+        // Also check sessionStorage as backup
+        if (!sessionUser) {
+            const sessionStorageUser = sessionStorage.getItem('currentUser') || sessionStorage.getItem('sessionUser');
+            if (sessionStorageUser && sessionStorageUser !== 'null') {
+                try {
+                    sessionUser = JSON.parse(sessionStorageUser);
+                    console.log('Found user session in sessionStorage:', sessionUser);
+                } catch (e) {
+                    console.warn('Error parsing sessionStorage user:', e);
+                }
+            }
+        }
+
+        if (sessionUser && (sessionUser.userID || sessionUser.id)) {
+            currentUserID = sessionUser.userID || sessionUser.id;
+            console.log('Current user ID initialized:', currentUserID);
+        } else {
+            console.log('No valid user session found');
         }
     }
 
     // Initialize session on page load
     initializeUserSession();
+
+    // Periodically check for session updates (in case user logs in/out in another tab)
+    setInterval(() => {
+        const oldUserID = currentUserID;
+        initializeUserSession();
+
+        // If user session changed, update UI
+        if (oldUserID !== currentUserID) {
+            console.log('User session changed, updating UI');
+            if (currentUserID) {
+                loadSavedPropertiesState();
+            } else {
+                // User logged out, reset save button states
+                document.querySelectorAll('.btn-save.saved').forEach(button => {
+                    button.classList.remove('saved');
+                    const icon = button.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('fas');
+                        icon.classList.add('far');
+                    }
+                });
+            }
+        }
+    }, 2000); // Check every 2 seconds
+
+    // Load saved properties state
+    async function loadSavedPropertiesState() {
+        if (!currentUserID) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/saved-properties/user/${currentUserID}`);
+            if (!response.ok) return;
+
+            const savedProperties = await response.json();
+
+            // Mark saved properties in the UI
+            savedProperties.forEach(savedProp => {
+                try {
+                    const propertyData = JSON.parse(savedProp.propertyData || '{}');
+                    const propertyId = propertyData.apartmentID;
+
+                    if (propertyId) {
+                        const saveButton = document.querySelector(`.btn-save[data-id="${propertyId}"]`);
+                        if (saveButton) {
+                            saveButton.classList.add('saved');
+                            const icon = saveButton.querySelector('i');
+                            if (icon) {
+                                icon.classList.remove('far');
+                                icon.classList.add('fas');
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Error parsing saved property data:', e);
+                }
+            });
+        } catch (error) {
+            console.warn('Error loading saved properties state:', error);
+        }
+    }
 
     // Theme Toggle Functionality
     const themeToggle = document.getElementById('themeToggle');
@@ -1727,93 +1822,57 @@
         studio: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=250&fit=crop&crop=center"
     };
 
-    // Sample Property Data
-    const properties = [
-        {
-            id: 1,
-            title: "Modern Downtown Apartment",
-            price: 2500,
-            address: "123 Main St, Downtown, City",
-            bedrooms: 2,
-            bathrooms: 2,
-            sqft: 1200,
-            type: "apartment",
-            available: "2023-07-15",
-            description: "Beautiful modern apartment in the heart of downtown with stunning city views.",
-            amenities: ["Pet Friendly", "Parking", "Laundry"],
-            image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=250&fit=crop&crop=center"
-        },
-        {
-            id: 2,
-            title: "Cozy Suburban House",
-            price: 1800,
-            address: "456 Oak Ave, Suburbia, City",
-            bedrooms: 3,
-            bathrooms: 2,
-            sqft: 1600,
-            type: "house",
-            available: "2023-08-01",
-            description: "Spacious family home in a quiet neighborhood with a large backyard.",
-            amenities: ["Parking", "Laundry", "Furnished"],
-            image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=250&fit=crop&crop=center"
-        },
-        {
-            id: 3,
-            title: "Luxury Waterfront Condo",
-            price: 3500,
-            address: "789 Harbor Dr, Waterfront, City",
-            bedrooms: 2,
-            bathrooms: 2.5,
-            sqft: 1500,
-            type: "condo",
-            available: "2023-07-20",
-            description: "Stunning waterfront condo with panoramic views and premium amenities.",
-            amenities: ["Pet Friendly", "Parking", "Laundry", "Furnished"],
-            image: "https://images.unsplash.com/photo-1545167622-3a6ac756afa4?w=400&h=250&fit=crop&crop=center"
-        },
-        {
-            id: 4,
-            title: "Charming Townhouse",
-            price: 2200,
-            address: "321 Elm St, Historic District, City",
-            bedrooms: 3,
-            bathrooms: 2.5,
-            sqft: 1800,
-            type: "townhouse",
-            available: "2023-08-10",
-            description: "Beautifully restored townhouse with original hardwood floors and modern updates.",
-            amenities: ["Parking", "Laundry"],
-            image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=250&fit=crop&crop=center"
-        },
-        {
-            id: 5,
-            title: "Studio in Arts District",
-            price: 1200,
-            address: "654 Gallery Ln, Arts District, City",
-            bedrooms: 1,
-            bathrooms: 1,
-            sqft: 700,
-            type: "apartment",
-            available: "2023-07-25",
-            description: "Bright studio apartment in the vibrant arts district, perfect for creatives.",
-            amenities: ["Pet Friendly", "Laundry"],
-            image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=250&fit=crop&crop=center"
-        },
-        {
-            id: 6,
-            title: "Spacious Family Home",
-            price: 2800,
-            address: "987 Maple Rd, Familyville, City",
-            bedrooms: 4,
-            bathrooms: 3,
-            sqft: 2200,
-            type: "house",
-            available: "2023-08-15",
-            description: "Large family home with updated kitchen, multiple living areas, and a spacious yard.",
-            amenities: ["Parking", "Laundry", "Furnished"],
-            image: "https://images.unsplash.com/photo-1448630360428-65456885c650?w=400&h=250&fit=crop&crop=center"
+    // Properties data loaded from server
+    let properties = [];
+
+    function extractImageFromDescription(desc) {
+        try {
+            const match = (desc || '').match(/https?:\/\/[^\s'\"]+\.(?:jpg|jpeg|png|gif)/i);
+            return match ? match[0] : null;
+        } catch (e) {
+            return null;
         }
-    ];
+    }
+
+    async function loadApartmentsAndRender() {
+        try {
+            const res = await fetch(`${API_BASE}/apartments`);
+            if (!res.ok) throw new Error(`Failed to load apartments: ${res.status}`);
+            const data = await res.json();
+
+            const toModel = (a) => {
+                const type = (a.type || 'apartment').toLowerCase();
+                const imageFromDesc = extractImageFromDescription(a.description || '');
+                const beds = Number(a.bedrooms) || 1;
+                return {
+                    id: a.apartmentID,
+                    title: `${type.charAt(0).toUpperCase() + type.slice(1)} in ${a.location || ''}`.trim(),
+                    price: Number(a.price) || 0,
+                    address: a.location || 'Unknown location',
+                    bedrooms: beds,
+                    bathrooms: Math.max(1, beds),
+                    sqft: 600 + (beds * 250),
+                    type,
+                    available: a.createdAt || new Date().toISOString(),
+                    description: a.description || '',
+                    amenities: [],
+                    image: imageFromDesc || null
+                };
+            };
+
+            properties = Array.isArray(data) ? data.map(toModel) : [];
+        } catch (err) {
+            console.error('[Rent.html] Error loading apartments:', err);
+            properties = [];
+        }
+
+        generatePropertyCards(properties);
+
+        if (currentUserID) {
+            // ensure buttons exist before syncing saved state
+            setTimeout(() => loadSavedPropertiesState().catch(console.warn), 0);
+        }
+    }
 
     // Generate Property Cards
     const propertiesGrid = document.getElementById('propertiesGrid');
@@ -1878,8 +1937,8 @@
         });
     }
 
-    // Initialize with all properties
-    generatePropertyCards(properties);
+    // Initialize by loading from backend
+    loadApartmentsAndRender();
 
     // Filter Properties
     document.getElementById('searchBtn').addEventListener('click', filterProperties);
@@ -2020,9 +2079,22 @@
 
     // Save Property Functionality
     async function toggleSaveProperty(propertyId, button) {
+        console.log('toggleSaveProperty called with:', { propertyId, currentUserID });
+
         if (!currentUserID) {
-            alert('Please log in to save properties.');
-            return;
+            // Try to re-initialize session before showing error
+            initializeUserSession();
+
+            if (!currentUserID) {
+                console.error('No user session found. Available localStorage keys:', Object.keys(localStorage));
+                showToast('Please log in to save properties. Redirecting to login page...');
+
+                // Optional: Redirect to login page after a delay
+                setTimeout(() => {
+                    window.location.href = 'index.html'; // or your login page
+                }, 2000);
+                return;
+            }
         }
 
         const icon = button.querySelector('i');
@@ -2063,8 +2135,8 @@
             const saveData = {
                 userID: currentUserID,
                 propertyPrice: property.price.toString(),
-                propertyAddress: property.location,
-                propertyFeatures: `${property.bedrooms} bed, ${property.bathrooms} bath`,
+                propertyAddress: property.address || property.location,
+                propertyFeatures: `${property.bedrooms} bed, ${property.bathrooms} bath, ${property.sqft} sqft`,
                 propertyData: {
                     apartmentID: property.id,
                     title: property.title,
@@ -2074,6 +2146,7 @@
                     sqft: property.sqft,
                     amenities: property.amenities,
                     imageUrl: property.image,
+                    address: property.address || property.location,
                     createdAt: property.createdAt || new Date().toISOString()
                 }
             };
@@ -2086,12 +2159,17 @@
                 body: JSON.stringify(saveData)
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const result = await response.json();
 
             if (!result.success) {
                 throw new Error(result.message || 'Failed to save property');
             }
 
+            console.log('Property saved successfully:', result);
             return result;
 
         } catch (error) {
@@ -2104,9 +2182,9 @@
     async function unsaveProperty(propertyId) {
         try {
             // Find the saved property ID by getting user's saved properties
-            const response = await fetch(`${API_BASE}/user/saved-properties/${currentUserID}`);
+            const response = await fetch(`${API_BASE}/saved-properties/user/${currentUserID}`);
             if (!response.ok) {
-                throw new Error('Failed to fetch saved properties');
+                throw new Error(`Failed to fetch saved properties: ${response.status}`);
             }
 
             const savedProperties = await response.json();
@@ -2114,9 +2192,13 @@
                 // Check if the saved property data contains our property ID
                 try {
                     const propertyData = JSON.parse(sp.propertyData || '{}');
-                    return propertyData.apartmentID === propertyId || sp.apartmentID === propertyId;
+                    return propertyData.apartmentID === propertyId ||
+                           propertyData.apartmentID === parseInt(propertyId) ||
+                           sp.apartmentID === propertyId ||
+                           sp.apartmentID === parseInt(propertyId);
                 } catch (e) {
-                    return sp.apartmentID === propertyId;
+                    console.warn('Error parsing property data:', e);
+                    return sp.apartmentID === propertyId || sp.apartmentID === parseInt(propertyId);
                 }
             });
 
@@ -2129,12 +2211,17 @@
                 method: 'DELETE'
             });
 
+            if (!deleteResponse.ok) {
+                throw new Error(`HTTP error! status: ${deleteResponse.status}`);
+            }
+
             const result = await deleteResponse.json();
 
             if (!result.success) {
                 throw new Error(result.message || 'Failed to remove property');
             }
 
+            console.log('Property removed successfully:', result);
             return result;
 
         } catch (error) {
