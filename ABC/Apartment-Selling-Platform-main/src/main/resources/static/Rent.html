@@ -2044,37 +2044,125 @@
     const bookingForm = document.getElementById('bookingForm');
     const saveForLater = document.getElementById('saveForLater');
 
+    // Track which apartment is being booked
+    let selectedApartmentId = null;
+
     function openBookingModal(propertyId) {
-        const property = properties.find(p => p.id == propertyId);
+        const property = properties.find(p => String(p.id) === String(propertyId));
         if (property) {
-            document.getElementById('monthlyRent').textContent = `$${property.price.toLocaleString()}`;
-            document.getElementById('securityDeposit').textContent = `$${property.price.toLocaleString()}`;
-            document.getElementById('totalDue').textContent = `$${(property.price * 2 + 50).toLocaleString()}`;
+            selectedApartmentId = property.id;
+            const monthly = Number(property.price) || 0;
+            const totalDueNow = monthly * 2 + 50; // first month + deposit + fee
+            document.getElementById('monthlyRent').textContent = `$${monthly.toLocaleString()}`;
+            document.getElementById('securityDeposit').textContent = `$${monthly.toLocaleString()}`;
+            document.getElementById('totalDue').textContent = `$${totalDueNow.toLocaleString()}`;
             bookingModal.style.display = 'flex';
         }
     }
 
     closeBookingModal.addEventListener('click', () => {
         bookingModal.style.display = 'none';
+        selectedApartmentId = null;
     });
 
     window.addEventListener('click', (e) => {
         if (e.target === bookingModal) {
             bookingModal.style.display = 'none';
+            selectedApartmentId = null;
         }
     });
 
-    bookingForm.addEventListener('submit', (e) => {
+    bookingForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // In a real app, this would submit the booking form
-        showToast('Booking request submitted successfully!');
-        bookingModal.style.display = 'none';
+
+        try {
+            // Ensure user is logged in
+            if (!currentUserID) {
+                initializeUserSession();
+                if (!currentUserID) {
+                    showToast('Please log in to complete booking.');
+                    return;
+                }
+            }
+
+            // Validate we have a property selected
+            const property = properties.find(p => String(p.id) === String(selectedApartmentId));
+            if (!property) {
+                showToast('No property selected. Please try again.');
+                return;
+            }
+
+            // Collect form inputs
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const moveIn = document.getElementById('moveInDateModal').value;
+            const months = parseInt(document.getElementById('leaseLength').value, 10) || 12;
+            const cardNumber = document.getElementById('cardNumber').value.replace(/\s+/g, '');
+
+            if (!fullName || !email || !phone || !moveIn || !cardNumber) {
+                showToast('Please fill in all required fields.');
+                return;
+            }
+
+            const monthlyRent = Number(property.price) || 0;
+            const totalAmount = monthlyRent * 2 + 50; // Due now, as shown in the UI
+
+            const payload = {
+                userID: Number(currentUserID),
+                apartmentID: Number(property.id),
+                paymentType: 'CARD',
+                cardNumber: cardNumber,
+                nameOnCard: fullName,
+                months: months,
+                monthlyRent: monthlyRent,
+                totalAmount: totalAmount,
+                // Optional extra metadata which backend ignores safely
+                email: email,
+                phone: phone,
+                moveInDate: moveIn
+            };
+
+            const resp = await fetch(`${API_BASE}/payments/add`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(`HTTP ${resp.status}: ${txt}`);
+            }
+
+            const result = await resp.json();
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to create booking');
+            }
+
+            showToast('Booking confirmed and saved!');
+            bookingModal.style.display = 'none';
+            selectedApartmentId = null;
+            bookingForm.reset();
+        } catch (err) {
+            console.error('Booking error:', err);
+            showToast('Failed to complete booking. Please try again.');
+        }
     });
 
     saveForLater.addEventListener('click', () => {
-        // In a real app, this would save the property to user's favorites
-        showToast('Property saved for later!');
-        bookingModal.style.display = 'none';
+        // Use existing save flow to persist the listing
+        if (!selectedApartmentId) {
+            showToast('No property selected.');
+            return;
+        }
+        const btn = document.querySelector(`.btn-save[data-id="${selectedApartmentId}"]`);
+        if (btn) {
+            toggleSaveProperty(String(selectedApartmentId), btn);
+            bookingModal.style.display = 'none';
+            selectedApartmentId = null;
+        } else {
+            showToast('Could not save this property right now.');
+        }
     });
 
     // Save Property Functionality
@@ -2124,10 +2212,10 @@
     // Save property function
     async function saveProperty(propertyId) {
         try {
-            // Find the property in displayed properties
-            const property = properties.find(p => p.id === propertyId);
+            // Find the property in displayed properties (coerce ID types to avoid strict equality mismatch)
+            const property = properties.find(p => String(p.id) === String(propertyId));
             if (!property) {
-                console.error('Property not found:', propertyId);
+                console.error('Property not found by ID:', propertyId, 'Available IDs:', properties.map(pp => pp.id));
                 throw new Error('Property not found');
             }
 
