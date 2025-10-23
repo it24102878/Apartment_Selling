@@ -2,8 +2,10 @@ package com.propertyhub.admin.service;
 
 import com.propertyhub.admin.entity.Apartment1;
 import com.propertyhub.admin.repository.ApartmentRepository1;
+import com.propertyhub.payment.repository.RentPaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +15,9 @@ public class ApartmentService1 {
 
     @Autowired
     private ApartmentRepository1 apartmentRepository1;
+
+    @Autowired
+    private RentPaymentRepository rentPaymentRepository;
 
     public List<Apartment1> getAllApartments() {
         return apartmentRepository1.findAll();
@@ -60,8 +65,15 @@ public class ApartmentService1 {
         return apartmentRepository1.save(existingApartment);
     }
 
-    public void deleteApartment(Integer id) {
-        Apartment1 apartment = getApartmentById(id);
-        apartmentRepository1.delete(apartment);
+    @Transactional
+    public boolean deleteApartment(Integer id) {
+        if (!apartmentRepository1.existsById(id)) {
+            return false;
+        }
+        // Delete all rent payments associated with this apartment first to avoid foreign key constraint violation
+        rentPaymentRepository.deleteByApartmentID(id);
+        // Then delete the apartment
+        apartmentRepository1.deleteById(id);
+        return true;
     }
 }

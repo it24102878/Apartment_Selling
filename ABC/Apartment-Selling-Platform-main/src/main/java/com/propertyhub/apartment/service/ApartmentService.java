@@ -3,8 +3,10 @@ package com.propertyhub.apartment.service;
 import com.propertyhub.apartment.entity.Apartment;
 import com.propertyhub.apartment.observer.ApartmentNotificationService;
 import com.propertyhub.apartment.repository.ApartmentRepository;
+import com.propertyhub.payment.repository.RentPaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +18,9 @@ public class ApartmentService {
 
     @Autowired
     private ApartmentRepository apartmentRepository;
+
+    @Autowired
+    private RentPaymentRepository rentPaymentRepository;
 
     @Autowired(required = false)
     private ApartmentNotificationService apartmentNotificationService;
@@ -78,12 +83,16 @@ public class ApartmentService {
         return saved;
     }
 
+    @Transactional
     public boolean deleteApartmentIfOwner(Integer apartmentID, Long userId) {
         Optional<Apartment> optionalApartment = apartmentRepository.findById(apartmentID);
         if (optionalApartment.isEmpty()) return false;
         Apartment ap = optionalApartment.get();
         Long owner = extractOwnerFromDescription(ap.getDescription());
         if (owner != null && owner.equals(userId)) {
+            // First delete all rent payments associated with this apartment to avoid foreign key constraint violation
+            rentPaymentRepository.deleteByApartmentID(apartmentID);
+            // Then delete the apartment
             apartmentRepository.deleteById(apartmentID);
             return true;
         }

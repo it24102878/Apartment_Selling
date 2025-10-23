@@ -24,7 +24,6 @@
                 <li><a href="#" class="nav-item flex items-center p-4 text-gray-600 hover:bg-gray-200" onclick="loadSection('dashboard')"><span class="mr-2">📊</span> Dashboard</a></li>
                 <li><a href="#" class="nav-item flex items-center p-4 text-gray-600 hover:bg-gray-200" onclick="loadSection('apartmentListings')"><span class="mr-2">🏢</span> Apartment Listings</a></li>
                 <li><a href="#" class="nav-item flex items-center p-4 text-gray-600 hover:bg-gray-200" onclick="loadSection('userManagement')"><span class="mr-2">👥</span> User Management</a></li>
-                <li><a href="#" class="nav-item flex items-center p-4 text-gray-600 hover:bg-gray-200" onclick="loadSection('revenueReports')"><span class="mr-2">📊</span> Revenue Reports</a></li>
                 <li><a href="#" class="nav-item flex items-center p-4 text-gray-600 hover:bg-gray-200" onclick="loadSection('locationMaps')"><span class="mr-2">🗺️</span> Location Maps</a></li>
             </ul>
         </nav>
@@ -101,14 +100,6 @@
                     <h2 class="text-xl font-bold mb-4">Apartments Status</h2>
                     <div class="chart-container" style="height: 250px;">
                         <canvas id="apartmentsChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Revenue Chart -->
-                <div class="chart-card bg-white p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-bold mb-4">Revenue Analytics</h2>
-                    <div class="chart-container" style="height: 250px;">
-                        <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
 
@@ -331,11 +322,6 @@
                     </table>
                 </div>
             </div>
-        </section>
-
-        <!-- Remaining sections -->
-        <section id="revenueReports" class="section hidden">
-            <!-- Revenue Reports content -->
         </section>
 
         <!-- Modals (Add Apartment, View/Edit Apartment, Add User, View/Edit User - truncated for brevity) -->
