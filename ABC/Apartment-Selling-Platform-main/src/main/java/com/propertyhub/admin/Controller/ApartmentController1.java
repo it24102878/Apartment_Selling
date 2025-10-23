@@ -3,6 +3,7 @@ package com.propertyhub.admin.Controller;
 import com.propertyhub.admin.entity.Apartment1;
 import com.propertyhub.admin.service.ApartmentService1;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -39,8 +40,14 @@ public class ApartmentController1 {
     }
 
     @DeleteMapping("/{id}")
-    public void deleteApartment(@PathVariable Integer id) {
-        apartmentService1.deleteApartment(id);
+    public ResponseEntity<?> deleteApartment(@PathVariable Integer id) {
+        try {
+            boolean deleted = apartmentService1.deleteApartment(id);
+            return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+        } catch (IllegalStateException ex) {
+            // There are dependent records (e.g., payments) preventing deletion
+            return ResponseEntity.status(409).body(ex.getMessage());
+        }
     }
     @GetMapping("/test")
     public List<Apartment1> getTestApartments() {

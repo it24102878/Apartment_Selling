@@ -593,3 +593,62 @@ aside {
         grid-template-columns: 1fr;
     }
 }
+/* Analytics table styles for Apartment Listings */
+.analytics-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.analytics-th {
+    background: #f3f4f6;
+    color: #374151;
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.analytics-td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 14px;
+    color: #111827;
+}
+
+/* Buttons in analytics tables */
+.analytics-edit-btn {
+    background-color: #2563eb; /* blue-600 */
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    margin-right: 8px;
+}
+
+.analytics-edit-btn:hover {
+    background-color: #1d4ed8; /* blue-700 */
+    transform: translateY(-1px);
+}
+
+.analytics-edit-btn.danger {
+    background-color: #ef4444; /* red-500 */
+}
+
+.analytics-edit-btn.danger:hover {
+    background-color: #dc2626; /* red-600 */
+}
+
+/* Ensure action buttons have spacing */
+.action-menu {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+}

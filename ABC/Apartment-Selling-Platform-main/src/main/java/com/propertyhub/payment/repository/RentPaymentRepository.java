@@ -8,4 +8,6 @@ import java.util.List;
 @Repository
 public interface RentPaymentRepository extends JpaRepository<RentPayment, Integer> {
     List<RentPayment> findByUserIDOrderByCreatedAtDesc(Long userID);
+    boolean existsByApartmentID(Integer apartmentID);
+    void deleteByApartmentID(Integer apartmentID);
 }

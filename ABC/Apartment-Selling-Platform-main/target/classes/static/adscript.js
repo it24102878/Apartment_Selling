@@ -649,7 +649,11 @@ function cancelEdit(id) {
 }
 
 // Load apartment listings
-async function loadApartmentListings() {
+async function loadApartmentListings(filterStatus = '') {
+    // Update currentFilter if provided (supports dropdown onchange)
+    if (typeof filterStatus === 'string') {
+        currentFilter = filterStatus;
+    }
     const section = document.getElementById('apartmentListings');
     if (!section) return;
 
@@ -703,17 +707,20 @@ async function loadApartmentListings() {
 
         apartments.forEach(apt => {
             const row = document.createElement('tr');
+            const statusClass = apt.aptStatus === 'AVAILABLE' ? 'status-available' : (apt.aptStatus === 'BOOKED' ? 'status-booked' : 'status-pending');
             row.innerHTML = `
                 <td class="analytics-td">${apt.aptId}</td>
                 <td class="analytics-td">${apt.aptType}</td>
                 <td class="analytics-td">$${parseFloat(apt.aptPrice).toLocaleString()}</td>
                 <td class="analytics-td">${apt.aptBedrooms}</td>
                 <td class="analytics-td">${apt.aptLocation}</td>
-                <td class="analytics-td">${apt.aptStatus}</td>
+                <td class="analytics-td"><span class="status-badge ${statusClass}">${apt.aptStatus}</span></td>
                 <td class="analytics-td">
-                    <button class="analytics-edit-btn" onclick="viewApartmentDetails(${apt.aptId})">View</button>
-                    <button class="analytics-edit-btn" onclick="editApartment(${apt.aptId})">Edit</button>
-                    <button class="analytics-edit-btn bg-red-500" onclick="deleteApartment(${apt.aptId})">Delete</button>
+                    <div class="action-menu">
+                        <button class="analytics-edit-btn" onclick="viewApartmentDetails(${apt.aptId})">View</button>
+                        <button class="analytics-edit-btn" onclick="editApartment(${apt.aptId})">Edit</button>
+                        <button class="analytics-edit-btn danger" onclick="deleteApartment(${apt.aptId})">Delete</button>
+                    </div>
                 </td>
             `;
             tbody.appendChild(row);
@@ -857,14 +864,30 @@ async function deleteApartment(apartmentId) {
 
     try {
         const response = await fetch(`${API_BASE_URL}/admin/apartments1/${apartmentId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
+            method: 'DELETE'
         });
 
-        if (!response.ok) throw new Error('Failed to delete apartment');
+        if (response.status === 204 || response.ok) {
+            showToast('Apartment deleted successfully', 'success');
+            // Reload respecting current filter if any
+            loadApartmentListings(currentFilter || '');
+            return;
+        }
 
-        showToast('Apartment deleted successfully', 'success');
-        loadApartmentListings();
+        if (response.status === 404) {
+            showToast('Apartment not found (it may have already been deleted). Refreshing…', 'info');
+            loadApartmentListings(currentFilter || '');
+            return;
+        }
+        if (response.status === 409) {
+            const msg = await response.text();
+            showToast(msg || 'Cannot delete apartment due to existing related payments.', 'error');
+            // Do not refresh automatically; keep the row so user can investigate
+            return;
+        }
+
+        const errText = await response.text();
+        throw new Error(`Failed to delete apartment: ${response.status} ${errText}`);
     } catch (error) {
         console.error('Error deleting apartment:', error);
         showToast('Failed to delete apartment', 'error');
